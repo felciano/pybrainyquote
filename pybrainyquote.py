@@ -8,6 +8,7 @@ import requests
 import furl
 
 
+
 HOME = furl.furl("http://www.brainyquote.com")
 
 # def tosuffix(s):
@@ -16,9 +17,9 @@ TOPICS = ['Motivational', 'Friendship', 'Love', 'Smile', 'Life', 'Inspirational'
 
 def fix(name):
     """Fix a name
-    
+
     e. e. cummings => E. E. Cummings
-    
+
     Arguments:
         name {str} -- the name of an author
     """
@@ -69,7 +70,7 @@ def get_authors():
 
 class Quote(object):
     """Quote class
-    
+
     Quotes of famous peaple
 
     Example
@@ -82,7 +83,7 @@ class Quote(object):
     >>> print(quote)
     >>> The greatest healing therapy is friendship and love. --- Hubert H. Humphrey
     """
-    
+
     __slots__ = ('content', 'topic', 'author', 'info')
 
     def __init__(self, content='', topic='', author='', info=''):
@@ -120,7 +121,7 @@ class Quote(object):
         else:
             L = len(self.content)
             return '{0:content}\n{0:signature}'.format(self)
-            
+
     def pretty(self):
         return '{0:7}'.format(self)
 
