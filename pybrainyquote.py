@@ -174,7 +174,6 @@ class Quote(object):
             if (isinstance(topic, list)):
                 quotes = []
                 for cur_topic in topic:
-                    print ("Looking for "+cur_topic)
                     cur_quotes = Quote.find_all(topic=cur_topic)
                     quotes.extend(cur_quotes)
                     time.sleep(delay_between_calls)
