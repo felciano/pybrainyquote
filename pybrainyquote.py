@@ -6,6 +6,7 @@ import random
 import bs4
 import requests
 import furl
+import time
 
 
 HOME = furl.furl("http://www.brainyquote.com")
@@ -16,17 +17,29 @@ TOPICS = ['Motivational', 'Friendship', 'Love', 'Smile', 'Life', 'Inspirational'
 
 def fix(name):
     """Fix a name
-    
+
     e. e. cummings => E. E. Cummings
-    
+
     Arguments:
         name {str} -- the name of an author
     """
     return ' '.join(n.capitalize() for n in name.split(' '))
 
 
+def get_page_with_retries(url, sleep=3, max_tries=10):
+    response = None
+    cur_try = 0
+    while (not(response) and (cur_try <= max_tries)):
+        cur_try = cur_try + 1
+        response = requests.get(url)
+        if "Too many requests" in response.text:
+            time.sleep(sleep)
+            response = None
+    return response
+
+
 def get_quotes(url, filter=None):
-    response = requests.get(url)
+    response = get_page_with_retries(url)
     soup = bs4.BeautifulSoup(response.text, "lxml")
     quotes = soup.find('div', {'id':'quotesList'})
     quotes = []
@@ -43,15 +56,16 @@ def get_quotes(url, filter=None):
 def get_topics():
     # get all topics
     url = HOME / 'topics'
-    response = requests.get(url)
+    response = get_page_with_retries(url)
     soup = bs4.BeautifulSoup(response.text, "lxml")
     topics = soup.find_all('div', {'class':'row bq_left'})[1]
     return [t.text for t in topics.find_all('span', {'class':'topicContentName'})]
 
+
 def get_popular_topics():
     # get a list of popular topics
     url = HOME / 'topics'
-    response = requests.get(url)
+    response = get_page_with_retries(url)
     soup = bs4.BeautifulSoup(response.text, "lxml")
     topics = soup.find_all('div', {'class':'row bq_left'})[1]
     return [t.text for t in topics.find_all('span', {'class':'topicContentName'}) if t.next_sibling.next_sibling.name == 'img']
@@ -60,7 +74,7 @@ def get_popular_topics():
 def get_authors():
     # get the list of authors
     url = HOME / 'authors'
-    response = requests.get(url)
+    response = get_page_with_retries(url)
     soup = bs4.BeautifulSoup(response.text, "lxml")
     return [t.text.strip() for t in soup.find_all('span', {'class':'authorContentName'})]
 
@@ -69,7 +83,7 @@ def get_authors():
 
 class Quote(object):
     """Quote class
-    
+
     Quotes of famous peaple
 
     Example
@@ -82,7 +96,7 @@ class Quote(object):
     >>> print(quote)
     >>> The greatest healing therapy is friendship and love. --- Hubert H. Humphrey
     """
-    
+
     __slots__ = ('content', 'topic', 'author', 'info')
 
     def __init__(self, content='', topic='', author='', info=''):
@@ -120,7 +134,7 @@ class Quote(object):
         else:
             L = len(self.content)
             return '{0:content}\n{0:signature}'.format(self)
-            
+
     def pretty(self):
         return '{0:7}'.format(self)
 
@@ -155,19 +169,27 @@ class Quote(object):
         return Quote.find_all(*args, **kwargs)[0]
 
     @staticmethod
-    def find_all(topic='', author='', index=''):
+    def find_all(topic='', author='', index='', delay_between_calls = 2):
         if topic:
-            url = HOME / ('topics/%s' % topic)
-            response = requests.get(url)
-            soup = bs4.BeautifulSoup(response.text, "lxml")
-            tags = soup.find('div', {'id':'quotesList'})
-            quotes = [Quote.fromTag(tag) for tag in tags.find_all('div', {'class':'clearfix'})]
-            if author:
-                quotes = [quote for quote in quotes if quote.author == author]
+            if (isinstance(topic, list)):
+                quotes = []
+                for cur_topic in topic:
+                    print ("Looking for "+cur_topic)
+                    cur_quotes = Quote.find_all(topic=cur_topic)
+                    quotes.extend(cur_quotes)
+                    time.sleep(delay_between_calls)
+            else:
+                url = HOME / ('topics/%s' % topic)
+                response = get_page_with_retries(url)
+                soup = bs4.BeautifulSoup(response.text, "lxml")
+                tags = soup.find('div', {'id':'quotesList'})
+                quotes = [Quote.fromTag(tag) for tag in tags.find_all('div', {'class':'clearfix'})]
+                if author:
+                    quotes = [quote for quote in quotes if quote.author == author]
         else:
             if author:
                 url = HOME / ('authors/%s' % author)
-                response = requests.get(url)
+                response = get_page_with_retries(url)
                 soup = bs4.BeautifulSoup(response.text, "lxml")
                 tags = soup.find('div', {'id':'quotesList'})
                 quotes = [Quote.fromTag(tag) for tag in tags.find_all('div', {'class':'clearfix'})]
@@ -176,6 +198,7 @@ class Quote(object):
                 for topic in TOPICS:
                     quotes = Quote.find_all(topic=topic)
                     quotes.extend(quotes)
+                    time.sleep(delay_between_calls)
         return quotes
 
     @staticmethod
@@ -188,7 +211,7 @@ class Quote(object):
     def today(topic=None):
         # get today quote
         url = HOME / 'quote_of_the_day'
-        response = requests.get(url)
+        response = get_page_with_retries(url)
         soup = bs4.BeautifulSoup(response.text, "lxml")
         container = soup.find('div', {'class': 'container bqQOTD'})
 
